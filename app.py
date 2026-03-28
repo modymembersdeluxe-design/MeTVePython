@@ -594,6 +594,27 @@ textarea{min-height:72px}.layout{display:grid;grid-template-columns:300px 1fr;ga
             <div id="watchMeta" class="small" style="margin-top:6px">Select a channel to watch content.</div>
           </div>
         </div>
+        <div class="panel" style="margin-top:8px">
+          <h3>Mega Players (Video / Title / Slide)</h3>
+          <div class="grid3">
+            <div class="card">
+              <b>Video Player Mega</b>
+              <div class="small">Primary channel playback with cable-style control.</div>
+              <button class="btn" onclick="playSelectedMode('video')">Play Video Mode</button>
+            </div>
+            <div class="card">
+              <b>Title Player Mega</b>
+              <div class="small">Lower thirds, title rolls, score and countdown layers.</div>
+              <button class="btn" onclick="playSelectedMode('title')">Play Title Mode</button>
+            </div>
+            <div class="card">
+              <b>Slide Player Mega</b>
+              <div class="small">Slide/image playlist for info channels and promos.</div>
+              <button class="btn" onclick="playSelectedMode('slide')">Play Slide Mode</button>
+            </div>
+          </div>
+          <pre id="playerModeBox" class="mono" style="margin-top:8px"></pre>
+        </div>
       </div>
 
       <div id="page-channels" class="page">
@@ -696,6 +717,19 @@ textarea{min-height:72px}.layout{display:grid;grid-template-columns:300px 1fr;ga
             <pre id="moderationBox" class="mono"></pre>
           </div>
         </div>
+        <div class="panel" style="margin-top:8px">
+          <h3>External Broadcast Engines (FFmpeg / ffplayout / PyLivestream / OpenCV / VLC-Tk / Flet)</h3>
+          <div class="small">Command preview and integration placeholders for advanced operator workflows.</div>
+          <div class="menu" style="margin-top:6px">
+            <button class="btn" onclick="showEngineCommand('ffmpeg')">FFmpeg</button>
+            <button class="btn" onclick="showEngineCommand('ffplayout')">ffplayout</button>
+            <button class="btn" onclick="showEngineCommand('pylivestream')">PyLivestream</button>
+            <button class="btn" onclick="showEngineCommand('opencv')">OpenCV</button>
+            <button class="btn" onclick="showEngineCommand('vlc')">VLC/Tkinter</button>
+            <button class="btn" onclick="showEngineCommand('flet')">Flet</button>
+          </div>
+          <pre id="engineBox" class="mono" style="margin-top:8px"></pre>
+        </div>
       </div>
 
       <div id="page-automation" class="page">
@@ -785,10 +819,9 @@ const state = {
   moderationQueue: [],
   role: 'Operator',
   lang: 'en',
-  pending: JSON.parse(localStorage.getItem('metve_pending_queue') || '[]'),
-  localChannels: JSON.parse(localStorage.getItem('metve_local_channels') || '[]')
+  pending: [],
+  localChannels: []
 };
-state.library = JSON.parse(localStorage.getItem('metve_library_assets') || JSON.stringify(state.library));
 
 function log(msg){
   const line = `[${new Date().toLocaleTimeString()}] ${msg}`;
@@ -797,9 +830,6 @@ function log(msg){
 }
 
 function persistLocal(){
-  localStorage.setItem('metve_pending_queue', JSON.stringify(state.pending));
-  localStorage.setItem('metve_local_channels', JSON.stringify(state.localChannels));
-  localStorage.setItem('metve_library_assets', JSON.stringify(state.library));
   pendingCount.textContent = state.pending.length;
 }
 
@@ -916,10 +946,10 @@ async function loadChannels(){
     renderChannels();
   } catch (e) {
     state.channels = [...state.localChannels];
-    apiHealth.textContent = 'degraded (local fallback)';
+    apiHealth.textContent = 'degraded (in-memory queue)';
     apiHealth.className = 'status-warn';
     renderChannels();
-    log('Loaded channels from local fallback');
+    log('Loaded channels from in-memory queue cache');
   }
 }
 
@@ -999,7 +1029,7 @@ async function saveChannel(){
     if (ix >= 0) state.localChannels[ix] = payload;
     persistLocal();
     renderChannels();
-    log('Save queued to local fallback queue');
+    log('Save queued to in-memory reliability queue');
   }
 }
 
@@ -1053,6 +1083,38 @@ function watchChannel(id){
   channelPlayer.src = firstPlayable?.url || '';
   watchMeta.textContent = `${ch.name} • ${ch.format} • ${ch.description || 'No description'} • ${firstPlayable ? ('Now Playing: '+firstPlayable.asset) : 'No playable URL in playlist yet'}`;
   log('Watch mode opened for channel ' + ch.name);
+}
+
+function playSelectedMode(mode){
+  const base = state.selected || state.channels[0];
+  if (!base) {
+    playerModeBox.textContent = 'No channel selected. Create/select a channel first.';
+    return;
+  }
+  if (mode === 'video') {
+    const src = (base.playlist || []).find(x => x.url)?.url || '';
+    if (src) channelPlayer.src = src;
+    playerModeBox.textContent = `VIDEO MODE\\nChannel: ${base.name}\\nSource: ${src || 'no URL yet'}`;
+  } else if (mode === 'title') {
+    playerModeBox.textContent = `TITLE MODE\\nChannel: ${base.name}\\nActive layers: LowerThird, Ticker, Clock, Countdown`;
+  } else if (mode === 'slide') {
+    const slides = state.library.filter(x => ['Image','GIF'].includes(x.type)).slice(0,6).map(x => x.name).join(', ');
+    playerModeBox.textContent = `SLIDE MODE\\nChannel: ${base.name}\\nSlides: ${slides || 'no slide assets yet'}`;
+  }
+  log('Player mode switched to ' + mode);
+}
+
+function showEngineCommand(engine){
+  const cmds = {
+    ffmpeg: 'ffmpeg -re -i input.mp4 -c:v libx264 -f flv rtmp://uplink/live/channel',
+    ffplayout: 'ffplayout --playlist playlist.json --out rtmp://uplink/live/channel',
+    pylivestream: 'pylivestream --youtube-stream-key KEY --input-device webcam',
+    opencv: 'python run_opencv_overlay.py --source camera0 --ticker \"LIVE\"',
+    vlc: 'vlc input.ts --sout \"#duplicate{dst=std{access=http,mux=ts,dst=:8081/live}}\"',
+    flet: 'python flet_control_room.py --channel demo --profile operator'
+  };
+  engineBox.textContent = `[${engine.toUpperCase()}]\\n${cmds[engine] || 'No command available'}`;
+  log('External engine profile opened: ' + engine);
 }
 
 function renderLibrary(){

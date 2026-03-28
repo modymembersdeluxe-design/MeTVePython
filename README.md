@@ -1,6 +1,6 @@
 # MeTVe Mega V2 (Python Public Website Edition)
 
-MeTVe Mega V2 is a Python-powered public website + API that simulates a **WebForms-era interactive television platform** with creator studio controls, channel lifecycle management, live stream tooling, media library operations, and reliability-first fallback behavior.
+MeTVe Mega V2 is a Python-powered public website + API that simulates a **WebForms-era interactive television platform** with creator studio controls, channel lifecycle management, live stream tooling, media library operations, and reliability-first queue behavior.
 
 ## Expanded Highlights
 
@@ -10,7 +10,7 @@ MeTVe Mega V2 is a Python-powered public website + API that simulates a **WebFor
 - Reliability hardening:
   - API timeout + retry/backoff
   - idempotency and correlation headers
-  - local fallback queue for create/save when API is unavailable
+  - in-memory reliability queue for create/save when API is unavailable
 - Socket stability controls:
   - explicit offline mode when URL missing
   - reconnect/resubscribe simulation when configured
@@ -31,6 +31,8 @@ MeTVe Mega V2 is a Python-powered public website + API that simulates a **WebFor
 - 24-hour mega playout grid builder with start/stop/next controls and as-run export
 - Smart schedule alerts (clash/free-slot checks) and AI moderation queue simulation
 - Multi-language UI mode toggle including RTL display mode and role-profile selector
+- Mega players: Video Player, Title Player, Slide Player
+- External engine command panel for FFmpeg, ffplayout, PyLivestream, OpenCV, VLC/Tkinter, and Flet integration flows
 - Automation modules:
   - frame-accurate snap schedule simulation
   - auto-EPG generation
@@ -59,4 +61,3 @@ Runtime data is stored in:
 - `data/channels.json`
 - `data/socket.json`
 - `data/events.json`
-- client local fallback in browser `localStorage` (`metve_pending_queue`, `metve_local_channels`, `metve_library_assets`)
