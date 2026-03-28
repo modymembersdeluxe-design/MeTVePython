@@ -704,6 +704,37 @@ textarea{min-height:72px}.layout{display:grid;grid-template-columns:300px 1fr;ga
             </div>
           </div>
         </div>
+        <div class="panel" style="margin-top:8px">
+          <h3>24-Hour Mega Playout Engine</h3>
+          <div class="grid3">
+            <label>Playout Date <input id="playoutDate" type="date"></label>
+            <label>Mode
+              <select id="playoutMode">
+                <option>Auto 24/7</option>
+                <option>Live Assist</option>
+                <option>Emergency Override</option>
+              </select>
+            </label>
+            <label>Filler Rule
+              <select id="fillerRule">
+                <option>Auto Filler on Gaps</option>
+                <option>Loop Last Block</option>
+                <option>Break News Priority</option>
+              </select>
+            </label>
+          </div>
+          <div class="menu" style="margin-top:6px">
+            <button class="btn" onclick="build24hPlayout()">Build 24H Grid</button>
+            <button class="btn ok" onclick="startPlayout()">Start Playout</button>
+            <button class="btn warn" onclick="nextPlayoutItem()">Next Item</button>
+            <button class="btn bad" onclick="stopPlayout()">Stop Playout</button>
+            <button class="btn" onclick="exportAsRun()">Export As-Run JSON</button>
+          </div>
+          <div class="grid2" style="margin-top:8px">
+            <table id="playoutTable" class="table"></table>
+            <pre id="asRunBox" class="mono" style="max-height:220px;overflow:auto"></pre>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -732,6 +763,10 @@ const state = {
     {slot:'08:01',asset:'Morning Show',kind:'Show'},
     {slot:'08:30',asset:'Ad Cluster',kind:'Commercial'}
   ],
+  playoutGrid: [],
+  playoutIndex: 0,
+  playoutTimer: null,
+  asRun: [],
   pending: JSON.parse(localStorage.getItem('metve_pending_queue') || '[]'),
   localChannels: JSON.parse(localStorage.getItem('metve_local_channels') || '[]')
 };
@@ -1060,6 +1095,88 @@ function generateEPG(){
   log('Auto-EPG generated (frame-accurate snap schedule simulation)');
 }
 
+function build24hPlayout(){
+  const base = state.playlist.length ? state.playlist : [{slot:'00:00',asset:'Default Filler',kind:'Filler',url:''}];
+  const date = playoutDate.value || new Date().toISOString().slice(0,10);
+  const grid = [];
+  for (let h = 0; h < 24; h++) {
+    const source = base[h % base.length];
+    grid.push({
+      time: `${String(h).padStart(2,'0')}:00`,
+      asset: source.asset || `Auto Block ${h}`,
+      kind: source.kind || 'Show',
+      url: source.url || '',
+      status: 'queued',
+      date,
+      mode: playoutMode.value,
+      fillerRule: fillerRule.value
+    });
+  }
+  state.playoutGrid = grid;
+  state.playoutIndex = 0;
+  renderPlayoutGrid();
+  log(`24H playout grid built for ${date} (${playoutMode.value})`);
+}
+
+function renderPlayoutGrid(){
+  playoutTable.innerHTML = '<tr><th>Time</th><th>Asset</th><th>Kind</th><th>Status</th></tr>' +
+    state.playoutGrid.map((it, idx) => `<tr><td>${it.time}</td><td>${it.asset}</td><td>${it.kind}</td><td>${idx===state.playoutIndex?'<span class=\"pill\">LIVE</span> ':''}${it.status}</td></tr>`).join('');
+}
+
+function startPlayout(){
+  if (!state.playoutGrid.length) build24hPlayout();
+  if (state.playoutTimer) clearInterval(state.playoutTimer);
+  state.playoutTimer = setInterval(nextPlayoutItem, 3500);
+  log('24H playout engine started');
+}
+
+function stopPlayout(){
+  if (state.playoutTimer) clearInterval(state.playoutTimer);
+  state.playoutTimer = null;
+  log('24H playout engine stopped');
+}
+
+function nextPlayoutItem(){
+  if (!state.playoutGrid.length) return;
+  if (state.playoutIndex >= state.playoutGrid.length) {
+    state.playoutIndex = 0;
+  }
+  state.playoutGrid.forEach((row, i) => {
+    if (i < state.playoutIndex) row.status = 'done';
+    if (i > state.playoutIndex) row.status = 'queued';
+  });
+  const current = state.playoutGrid[state.playoutIndex];
+  current.status = 'on-air';
+  state.asRun.unshift({
+    ts: new Date().toISOString(),
+    item: current.asset,
+    time: current.time,
+    kind: current.kind,
+    mode: current.mode
+  });
+  state.asRun = state.asRun.slice(0, 1200);
+  asRunBox.textContent = state.asRun.map(x => `${x.ts} | ${x.time} | ${x.item} | ${x.kind} | ${x.mode}`).join('\\n');
+  if (current.url) {
+    channelPlayer.src = current.url;
+    watchMeta.textContent = `On Air: ${current.asset} (${current.kind})`;
+  }
+  log(`On-air switched to ${current.time} ${current.asset}`);
+  state.playoutIndex += 1;
+  renderPlayoutGrid();
+}
+
+function exportAsRun(){
+  const payload = JSON.stringify(state.asRun, null, 2);
+  const blob = new Blob([payload], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `metve-asrun-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  log('As-run export generated');
+}
+
 function toggleApiFailure(){
   state.apiFailSim = !state.apiFailSim;
   log('API failure simulation ' + (state.apiFailSim ? 'enabled' : 'disabled'));
@@ -1194,6 +1311,8 @@ renderLibrary();
 renderPlaylist();
 simulateRevenue();
 snapshotAnalytics();
+playoutDate.value = new Date().toISOString().slice(0,10);
+build24hPlayout();
 updateTimezone();
 refreshMe();
 refreshSocketConfig();

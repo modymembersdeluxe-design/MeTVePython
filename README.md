@@ -28,6 +28,7 @@ MeTVe Mega V2 is a Python-powered public website + API that simulates a **WebFor
   - create/save continue through local queue even if API/socket is unavailable
   - manual local resync pushes queued create/save actions back to API
 - Broadcaster timezone selector for schedule context
+- 24-hour mega playout grid builder with start/stop/next controls and as-run export
 - Automation modules:
   - frame-accurate snap schedule simulation
   - auto-EPG generation
