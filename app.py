@@ -477,6 +477,8 @@ textarea{min-height:72px}.layout{display:grid;grid-template-columns:300px 1fr;ga
     <button class="btn" onclick="quick('promote')">Quick: Promote</button>
     <button class="btn" onclick="quick('monitor')">Quick: Monitor</button>
     <button class="btn" onclick="resyncLocal()">Quick: Local Sync</button>
+    <select id="uiLang" onchange="setLanguage()"><option value="en">English</option><option value="ar">Arabic (RTL)</option></select>
+    <select id="userRole" onchange="setRole()"><option>Operator</option><option>Producer</option><option>Viewer</option><option>Admin</option></select>
     <select id="nostalgiaPreset" onchange="applyNostalgia()"><option>CRT Glow</option><option>Blue Neon</option><option>Studio Amber</option></select>
   </div>
   <div class="ticker"><span>MeTVe Mega Capabilities: playout • lower-thirds • SMS moderation • IVR queue • UDP/RTMP/SRT/NDI outputs • auto-EPG • SCTE simulation • PAL/NTSC safe-area.</span></div>
@@ -681,6 +683,19 @@ textarea{min-height:72px}.layout{display:grid;grid-template-columns:300px 1fr;ga
             <pre id="eventsBox" class="mono" style="max-height:260px;overflow:auto"></pre>
           </div>
         </div>
+        <div class="panel" style="margin-top:8px">
+          <h3>Smart Alerts + AI Moderation</h3>
+          <div class="menu">
+            <button class="btn" onclick="scanSmartAlerts()">Scan Schedule Alerts</button>
+            <button class="btn" onclick="seedModeration()">Seed SMS/Chat Queue</button>
+            <button class="btn" onclick="approveModeration()">Approve Top</button>
+            <button class="btn bad" onclick="rejectModeration()">Reject Top</button>
+          </div>
+          <div class="grid2" style="margin-top:8px">
+            <pre id="alertsBox" class="mono"></pre>
+            <pre id="moderationBox" class="mono"></pre>
+          </div>
+        </div>
       </div>
 
       <div id="page-automation" class="page">
@@ -767,6 +782,9 @@ const state = {
   playoutIndex: 0,
   playoutTimer: null,
   asRun: [],
+  moderationQueue: [],
+  role: 'Operator',
+  lang: 'en',
   pending: JSON.parse(localStorage.getItem('metve_pending_queue') || '[]'),
   localChannels: JSON.parse(localStorage.getItem('metve_local_channels') || '[]')
 };
@@ -865,6 +883,26 @@ function showPage(name, el){
 
 function quick(action){ log('Quick menu -> ' + action); }
 
+function setLanguage(){
+  state.lang = uiLang.value;
+  const rtl = state.lang === 'ar';
+  document.documentElement.dir = rtl ? 'rtl' : 'ltr';
+  log('UI language mode set to ' + (rtl ? 'Arabic RTL' : 'English LTR'));
+}
+
+function setRole(){
+  state.role = userRole.value;
+  log('Role set to ' + state.role);
+}
+
+function canManageChannels(){
+  if (state.role === 'Viewer') {
+    log('Viewer role cannot create/save channels. Switch role to Operator/Producer/Admin.');
+    return false;
+  }
+  return true;
+}
+
 async function loadChannels(){
   const q = encodeURIComponent((chSearch.value || '').trim());
   const f = encodeURIComponent((formatFilter.value || 'All'));
@@ -906,6 +944,7 @@ function channelPayload(){
 }
 
 async function createChannel(){
+  if (!canManageChannels()) return;
   const payload = channelPayload();
   try {
     const res = await apiFetch('/api/channels', {
@@ -943,6 +982,7 @@ function selectChannel(id){
 }
 
 async function saveChannel(){
+  if (!canManageChannels()) return;
   if (!state.selected) { log('No selected channel'); return; }
   const payload = {...state.selected, ...channelPayload()};
   try {
@@ -964,6 +1004,7 @@ async function saveChannel(){
 }
 
 async function cloneChannel(){
+  if (!canManageChannels()) return;
   if (!state.selected) { log('No selected channel'); return; }
   try {
     await apiFetch('/api/channels/' + state.selected.id + '/clone', {
@@ -977,6 +1018,7 @@ async function cloneChannel(){
 }
 
 async function archiveChannel(){
+  if (!canManageChannels()) return;
   if (!state.selected) { log('No selected channel'); return; }
   try {
     await apiFetch('/api/channels/' + state.selected.id, {method:'DELETE'});
@@ -1177,6 +1219,49 @@ function exportAsRun(){
   log('As-run export generated');
 }
 
+function scanSmartAlerts(){
+  const alerts = [];
+  if (!state.playoutGrid.length) alerts.push('No playout grid built.');
+  const seen = new Set();
+  for (const item of state.playoutGrid) {
+    if (seen.has(item.time)) alerts.push(`Clash detected at ${item.time}`);
+    seen.add(item.time);
+    if (!item.asset || item.asset.trim() === '') alerts.push(`Free slot at ${item.time}`);
+  }
+  if (!alerts.length) alerts.push('No clashes/free-slots detected. Schedule healthy.');
+  alerts.push(`Role=${state.role}, Lang=${state.lang}, Socket=${state.socketUrl ? 'configured' : 'offline mode'}`);
+  alertsBox.textContent = alerts.join('\\n');
+  log('Smart alert scan completed');
+}
+
+function seedModeration(){
+  state.moderationQueue.unshift(
+    {type:'SMS', user:'+12025550101', text:'Play my song please!', ai:'safe'},
+    {type:'CHAT', user:'viewer_neo', text:'This channel is HOT LIVE', ai:'safe'},
+    {type:'SMS', user:'+447700900123', text:'spam $$$ link', ai:'flagged'}
+  );
+  renderModeration();
+  log('Moderation queue seeded');
+}
+
+function approveModeration(){
+  const item = state.moderationQueue.shift();
+  if (!item) { log('No moderation items to approve'); return; }
+  log(`Approved ${item.type} from ${item.user}`);
+  renderModeration();
+}
+
+function rejectModeration(){
+  const item = state.moderationQueue.shift();
+  if (!item) { log('No moderation items to reject'); return; }
+  log(`Rejected ${item.type} from ${item.user}`);
+  renderModeration();
+}
+
+function renderModeration(){
+  moderationBox.textContent = state.moderationQueue.map((m, i) => `#${i+1} ${m.type} ${m.user} | ${m.text} | AI=${m.ai}`).join('\\n') || 'Moderation queue empty';
+}
+
 function toggleApiFailure(){
   state.apiFailSim = !state.apiFailSim;
   log('API failure simulation ' + (state.apiFailSim ? 'enabled' : 'disabled'));
@@ -1314,6 +1399,9 @@ snapshotAnalytics();
 playoutDate.value = new Date().toISOString().slice(0,10);
 build24hPlayout();
 updateTimezone();
+setLanguage();
+setRole();
+renderModeration();
 refreshMe();
 refreshSocketConfig();
 refreshEvents();
