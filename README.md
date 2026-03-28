@@ -23,6 +23,14 @@ MeTVe Mega V2 is a Python-powered public website + API that simulates a **WebFor
   - local search + drag/drop chunk upload simulation
 - Creator Freedom Hub + Project Advertising page
 - Reliability and event monitor with one-click local resync
+- Featured-channel homepage watch preview + per-channel watch panel
+- Channel creation/save reliability fix path:
+  - create/save continue through local queue even if API/socket is unavailable
+  - manual local resync pushes queued create/save actions back to API
+- Broadcaster timezone selector for schedule context
+- 24-hour mega playout grid builder with start/stop/next controls and as-run export
+- Smart schedule alerts (clash/free-slot checks) and AI moderation queue simulation
+- Multi-language UI mode toggle including RTL display mode and role-profile selector
 - Automation modules:
   - frame-accurate snap schedule simulation
   - auto-EPG generation
@@ -51,3 +59,4 @@ Runtime data is stored in:
 - `data/channels.json`
 - `data/socket.json`
 - `data/events.json`
+- client local fallback in browser `localStorage` (`metve_pending_queue`, `metve_local_channels`, `metve_library_assets`)

@@ -477,6 +477,8 @@ textarea{min-height:72px}.layout{display:grid;grid-template-columns:300px 1fr;ga
     <button class="btn" onclick="quick('promote')">Quick: Promote</button>
     <button class="btn" onclick="quick('monitor')">Quick: Monitor</button>
     <button class="btn" onclick="resyncLocal()">Quick: Local Sync</button>
+    <select id="uiLang" onchange="setLanguage()"><option value="en">English</option><option value="ar">Arabic (RTL)</option></select>
+    <select id="userRole" onchange="setRole()"><option>Operator</option><option>Producer</option><option>Viewer</option><option>Admin</option></select>
     <select id="nostalgiaPreset" onchange="applyNostalgia()"><option>CRT Glow</option><option>Blue Neon</option><option>Studio Amber</option></select>
   </div>
   <div class="ticker"><span>MeTVe Mega Capabilities: playout • lower-thirds • SMS moderation • IVR queue • UDP/RTMP/SRT/NDI outputs • auto-EPG • SCTE simulation • PAL/NTSC safe-area.</span></div>
@@ -580,6 +582,18 @@ textarea{min-height:72px}.layout{display:grid;grid-template-columns:300px 1fr;ga
             </div>
           </div>
         </div>
+        <div class="grid2" style="margin-top:8px">
+          <div class="panel">
+            <h3>Featured Channels + Cable Watch Preview</h3>
+            <table id="featuredTable" class="table"></table>
+            <div class="small">Click “Watch” to load channel preview and details.</div>
+          </div>
+          <div class="panel">
+            <h3>Channel Watch Page</h3>
+            <video id="channelPlayer" controls muted style="width:100%;background:#000;min-height:180px"></video>
+            <div id="watchMeta" class="small" style="margin-top:6px">Select a channel to watch content.</div>
+          </div>
+        </div>
       </div>
 
       <div id="page-channels" class="page">
@@ -600,6 +614,24 @@ textarea{min-height:72px}.layout{display:grid;grid-template-columns:300px 1fr;ga
       <div id="page-library" class="page">
         <h3>Media Creator Studio + Library Folders</h3>
         <div class="small">Shows, Movies, Commercials, Bumpers, Songs, Idents, Promos, Graphics</div>
+        <div class="grid3">
+          <label>Asset Name <input id="assetName" placeholder="Evening Show Episode 1"></label>
+          <label>Asset Type
+            <select id="assetType">
+              <option>Video</option><option>Audio</option><option>Music</option><option>Image</option><option>GIF</option><option>Live Event</option>
+            </select>
+          </label>
+          <label>Asset URL / Stream / YouTube / VidLii / Archive <input id="assetUrl" placeholder="https://..."></label>
+        </div>
+        <div class="menu" style="margin-top:6px">
+          <button class="btn" onclick="addAssetToFolder('Shows')">Add Shows (Folder)</button>
+          <button class="btn" onclick="addAssetToFolder('Movies')">Add Movies (Folder)</button>
+          <button class="btn" onclick="addAssetToFolder('Commercials')">Add Commercials (Folder)</button>
+          <button class="btn" onclick="addAssetToFolder('Bumpers')">Add Bumpers (Multi)</button>
+          <button class="btn" onclick="addAssetToFolder('Songs')">Add Songs (Folder/Multi)</button>
+          <button class="btn" onclick="addAssetToFolder('Idents')">Add Idents (Multi)</button>
+          <button class="btn" onclick="addAssetToFolder('Promos')">Add Promos (Folder)</button>
+        </div>
         <label>Library Search <input id="librarySearch" oninput="renderLibrary()"></label>
         <div class="menu" style="margin-top:6px">
           <button class="btn" onclick="batchFolder('Shows')">Batch Shows</button>
@@ -618,6 +650,16 @@ textarea{min-height:72px}.layout{display:grid;grid-template-columns:300px 1fr;ga
 
       <div id="page-reliability" class="page">
         <h3>Reliability Monitor + Sync Actions</h3>
+        <label>Broadcaster Time Zone
+          <select id="tzSelect" onchange="updateTimezone()">
+            <option value="UTC">UTC</option>
+            <option value="America/New_York">America/New_York</option>
+            <option value="Europe/London">Europe/London</option>
+            <option value="Asia/Dubai">Asia/Dubai</option>
+            <option value="Asia/Kolkata">Asia/Kolkata</option>
+          </select>
+        </label>
+        <div id="tzNow" class="small">Current scheduler time: -</div>
         <div class="grid2">
           <div class="panel">
             <h3>Live Stream Engine Panel</h3>
@@ -639,6 +681,19 @@ textarea{min-height:72px}.layout{display:grid;grid-template-columns:300px 1fr;ga
             <button class="btn" onclick="resyncLocal()">One-click Resync Local Queue</button>
             <button class="btn" onclick="refreshEvents()">Refresh Events</button>
             <pre id="eventsBox" class="mono" style="max-height:260px;overflow:auto"></pre>
+          </div>
+        </div>
+        <div class="panel" style="margin-top:8px">
+          <h3>Smart Alerts + AI Moderation</h3>
+          <div class="menu">
+            <button class="btn" onclick="scanSmartAlerts()">Scan Schedule Alerts</button>
+            <button class="btn" onclick="seedModeration()">Seed SMS/Chat Queue</button>
+            <button class="btn" onclick="approveModeration()">Approve Top</button>
+            <button class="btn bad" onclick="rejectModeration()">Reject Top</button>
+          </div>
+          <div class="grid2" style="margin-top:8px">
+            <pre id="alertsBox" class="mono"></pre>
+            <pre id="moderationBox" class="mono"></pre>
           </div>
         </div>
       </div>
@@ -664,6 +719,37 @@ textarea{min-height:72px}.layout{display:grid;grid-template-columns:300px 1fr;ga
             </div>
           </div>
         </div>
+        <div class="panel" style="margin-top:8px">
+          <h3>24-Hour Mega Playout Engine</h3>
+          <div class="grid3">
+            <label>Playout Date <input id="playoutDate" type="date"></label>
+            <label>Mode
+              <select id="playoutMode">
+                <option>Auto 24/7</option>
+                <option>Live Assist</option>
+                <option>Emergency Override</option>
+              </select>
+            </label>
+            <label>Filler Rule
+              <select id="fillerRule">
+                <option>Auto Filler on Gaps</option>
+                <option>Loop Last Block</option>
+                <option>Break News Priority</option>
+              </select>
+            </label>
+          </div>
+          <div class="menu" style="margin-top:6px">
+            <button class="btn" onclick="build24hPlayout()">Build 24H Grid</button>
+            <button class="btn ok" onclick="startPlayout()">Start Playout</button>
+            <button class="btn warn" onclick="nextPlayoutItem()">Next Item</button>
+            <button class="btn bad" onclick="stopPlayout()">Stop Playout</button>
+            <button class="btn" onclick="exportAsRun()">Export As-Run JSON</button>
+          </div>
+          <div class="grid2" style="margin-top:8px">
+            <table id="playoutTable" class="table"></table>
+            <pre id="asRunBox" class="mono" style="max-height:220px;overflow:auto"></pre>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -682,19 +768,27 @@ const state = {
   socketUrl: '',
   apiFailSim: false,
   library: [
-    {folder:'Shows',name:'Retro Morning Show'}, {folder:'Movies',name:'Prime Thriller'},
-    {folder:'Commercials',name:'Soda Spot 2011'}, {folder:'Bumpers',name:'Bumper A'},
-    {folder:'Songs',name:'Top Pop'}, {folder:'Idents',name:'MeTVe Blue Ident'},
-    {folder:'Promos',name:'Weekend Promo'}, {folder:'Graphics',name:'Lower Third Pack'}
+    {folder:'Shows',name:'Retro Morning Show',type:'Video',url:''}, {folder:'Movies',name:'Prime Thriller',type:'Video',url:''},
+    {folder:'Commercials',name:'Soda Spot 2011',type:'Video',url:''}, {folder:'Bumpers',name:'Bumper A',type:'GIF',url:''},
+    {folder:'Songs',name:'Top Pop',type:'Music',url:''}, {folder:'Idents',name:'MeTVe Blue Ident',type:'Image',url:''},
+    {folder:'Promos',name:'Weekend Promo',type:'Video',url:''}, {folder:'Graphics',name:'Lower Third Pack',type:'Image',url:''}
   ],
   playlist: [
     {slot:'08:00',asset:'Retro Intro',kind:'Ident'},
     {slot:'08:01',asset:'Morning Show',kind:'Show'},
     {slot:'08:30',asset:'Ad Cluster',kind:'Commercial'}
   ],
+  playoutGrid: [],
+  playoutIndex: 0,
+  playoutTimer: null,
+  asRun: [],
+  moderationQueue: [],
+  role: 'Operator',
+  lang: 'en',
   pending: JSON.parse(localStorage.getItem('metve_pending_queue') || '[]'),
   localChannels: JSON.parse(localStorage.getItem('metve_local_channels') || '[]')
 };
+state.library = JSON.parse(localStorage.getItem('metve_library_assets') || JSON.stringify(state.library));
 
 function log(msg){
   const line = `[${new Date().toLocaleTimeString()}] ${msg}`;
@@ -705,6 +799,7 @@ function log(msg){
 function persistLocal(){
   localStorage.setItem('metve_pending_queue', JSON.stringify(state.pending));
   localStorage.setItem('metve_local_channels', JSON.stringify(state.localChannels));
+  localStorage.setItem('metve_library_assets', JSON.stringify(state.library));
   pendingCount.textContent = state.pending.length;
 }
 
@@ -788,6 +883,26 @@ function showPage(name, el){
 
 function quick(action){ log('Quick menu -> ' + action); }
 
+function setLanguage(){
+  state.lang = uiLang.value;
+  const rtl = state.lang === 'ar';
+  document.documentElement.dir = rtl ? 'rtl' : 'ltr';
+  log('UI language mode set to ' + (rtl ? 'Arabic RTL' : 'English LTR'));
+}
+
+function setRole(){
+  state.role = userRole.value;
+  log('Role set to ' + state.role);
+}
+
+function canManageChannels(){
+  if (state.role === 'Viewer') {
+    log('Viewer role cannot create/save channels. Switch role to Operator/Producer/Admin.');
+    return false;
+  }
+  return true;
+}
+
 async function loadChannels(){
   const q = encodeURIComponent((chSearch.value || '').trim());
   const f = encodeURIComponent((formatFilter.value || 'All'));
@@ -829,6 +944,7 @@ function channelPayload(){
 }
 
 async function createChannel(){
+  if (!canManageChannels()) return;
   const payload = channelPayload();
   try {
     const res = await apiFetch('/api/channels', {
@@ -861,10 +977,12 @@ function selectChannel(id){
   chAd.value = state.selected.ad_banner || '';
   if (Array.isArray(state.selected.playlist)) state.playlist = state.selected.playlist;
   renderPlaylist();
+  watchChannel(id);
   log('Selected channel ' + state.selected.name);
 }
 
 async function saveChannel(){
+  if (!canManageChannels()) return;
   if (!state.selected) { log('No selected channel'); return; }
   const payload = {...state.selected, ...channelPayload()};
   try {
@@ -886,6 +1004,7 @@ async function saveChannel(){
 }
 
 async function cloneChannel(){
+  if (!canManageChannels()) return;
   if (!state.selected) { log('No selected channel'); return; }
   try {
     await apiFetch('/api/channels/' + state.selected.id + '/clone', {
@@ -899,6 +1018,7 @@ async function cloneChannel(){
 }
 
 async function archiveChannel(){
+  if (!canManageChannels()) return;
   if (!state.selected) { log('No selected channel'); return; }
   try {
     await apiFetch('/api/channels/' + state.selected.id, {method:'DELETE'});
@@ -916,23 +1036,60 @@ function renderChannels(){
       <td><button class="btn" onclick="selectChannel('${c.id}')">Select</button></td>
     </tr>`).join('');
   channelsTable.innerHTML = '<tr><th>Name</th><th>Format</th><th>Version</th><th>Tags</th><th>Status</th><th>Action</th></tr>' + rows;
+  renderFeaturedChannels();
+}
+
+function renderFeaturedChannels(){
+  const top = [...state.channels].filter(c => !c.archived).slice(0, 8);
+  featuredTable.innerHTML = '<tr><th>Featured</th><th>Format</th><th>Watch</th></tr>' + top.map(c => `
+    <tr><td>${c.name}</td><td>${c.format}</td><td><button class="btn" onclick="watchChannel('${c.id}')">Watch</button></td></tr>
+  `).join('');
+}
+
+function watchChannel(id){
+  const ch = state.channels.find(c => c.id === id);
+  if (!ch) return;
+  const firstPlayable = (ch.playlist || []).find(i => i.url) || null;
+  channelPlayer.src = firstPlayable?.url || '';
+  watchMeta.textContent = `${ch.name} • ${ch.format} • ${ch.description || 'No description'} • ${firstPlayable ? ('Now Playing: '+firstPlayable.asset) : 'No playable URL in playlist yet'}`;
+  log('Watch mode opened for channel ' + ch.name);
 }
 
 function renderLibrary(){
   const q = (librarySearch.value || '').toLowerCase();
-  const items = state.library.filter(i => i.name.toLowerCase().includes(q) || i.folder.toLowerCase().includes(q));
-  libraryTable.innerHTML = '<tr><th>Folder</th><th>Name</th></tr>' + items.map(i => `<tr><td>${i.folder}</td><td>${i.name}</td></tr>`).join('');
+  const items = state.library.filter(i => i.name.toLowerCase().includes(q) || i.folder.toLowerCase().includes(q) || (i.type || '').toLowerCase().includes(q));
+  libraryTable.innerHTML = '<tr><th>Folder</th><th>Name</th><th>Type</th><th>Source</th><th>Action</th></tr>' + items.map(i => `<tr><td>${i.folder}</td><td>${i.name}</td><td>${i.type || '-'}</td><td class="small">${i.url || '-'}</td><td><button class="btn" onclick="pushToPlaylist('${i.name.replace(/'/g, \"&#39;\")}', '${i.url || ''}')">Use</button></td></tr>`).join('');
 }
 
 function batchFolder(folder){
-  for (let i=0;i<3;i++) state.library.push({folder, name:`${folder} Asset ${Math.floor(Math.random()*9999)}`});
+  for (let i=0;i<3;i++) state.library.push({folder, name:`${folder} Asset ${Math.floor(Math.random()*9999)}`, type:'Video', url:''});
   renderLibrary();
+  persistLocal();
   log('Batch folder action: ' + folder);
 }
 
+function addAssetToFolder(folder){
+  const name = (assetName.value || `${folder} Asset ${Date.now()}`).trim();
+  const type = assetType.value;
+  const url = (assetUrl.value || '').trim();
+  const item = {folder, name, type, url};
+  state.library.push(item);
+  renderLibrary();
+  persistLocal();
+  log(`Added ${type} asset to ${folder}: ${name}`);
+}
+
+function pushToPlaylist(name, url){
+  const d = new Date();
+  const slot = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  state.playlist.push({slot, asset:name, kind:'Asset', url});
+  renderPlaylist();
+  log('Asset pushed to playlist: ' + name);
+}
+
 function renderPlaylist(){
-  playlistTable.innerHTML = '<tr><th>Slot</th><th>Asset</th><th>Kind</th></tr>' + state.playlist.map((p,i)=>
-    `<tr><td>${p.slot}</td><td contenteditable onblur="editPlaylist(${i},'asset',this.textContent)">${p.asset}</td><td>${p.kind}</td></tr>`
+  playlistTable.innerHTML = '<tr><th>Slot</th><th>Asset</th><th>Kind</th><th>URL</th></tr>' + state.playlist.map((p,i)=>
+    `<tr><td>${p.slot}</td><td contenteditable onblur="editPlaylist(${i},'asset',this.textContent)">${p.asset}</td><td>${p.kind}</td><td contenteditable onblur="editPlaylist(${i},'url',this.textContent)">${p.url || ''}</td></tr>`
   ).join('');
 }
 
@@ -978,6 +1135,131 @@ function generateEPG(){
   const lines = guideInput.value.split('\n').map(x => x.trim()).filter(Boolean);
   epgBox.textContent = lines.map((line,i) => `${i+1}. ${line} [SCTE:${i%2===0?'YES':'NO'}] [Traffic:${i%3===0?'HOOK':'PASS'}]`).join('\n');
   log('Auto-EPG generated (frame-accurate snap schedule simulation)');
+}
+
+function build24hPlayout(){
+  const base = state.playlist.length ? state.playlist : [{slot:'00:00',asset:'Default Filler',kind:'Filler',url:''}];
+  const date = playoutDate.value || new Date().toISOString().slice(0,10);
+  const grid = [];
+  for (let h = 0; h < 24; h++) {
+    const source = base[h % base.length];
+    grid.push({
+      time: `${String(h).padStart(2,'0')}:00`,
+      asset: source.asset || `Auto Block ${h}`,
+      kind: source.kind || 'Show',
+      url: source.url || '',
+      status: 'queued',
+      date,
+      mode: playoutMode.value,
+      fillerRule: fillerRule.value
+    });
+  }
+  state.playoutGrid = grid;
+  state.playoutIndex = 0;
+  renderPlayoutGrid();
+  log(`24H playout grid built for ${date} (${playoutMode.value})`);
+}
+
+function renderPlayoutGrid(){
+  playoutTable.innerHTML = '<tr><th>Time</th><th>Asset</th><th>Kind</th><th>Status</th></tr>' +
+    state.playoutGrid.map((it, idx) => `<tr><td>${it.time}</td><td>${it.asset}</td><td>${it.kind}</td><td>${idx===state.playoutIndex?'<span class=\"pill\">LIVE</span> ':''}${it.status}</td></tr>`).join('');
+}
+
+function startPlayout(){
+  if (!state.playoutGrid.length) build24hPlayout();
+  if (state.playoutTimer) clearInterval(state.playoutTimer);
+  state.playoutTimer = setInterval(nextPlayoutItem, 3500);
+  log('24H playout engine started');
+}
+
+function stopPlayout(){
+  if (state.playoutTimer) clearInterval(state.playoutTimer);
+  state.playoutTimer = null;
+  log('24H playout engine stopped');
+}
+
+function nextPlayoutItem(){
+  if (!state.playoutGrid.length) return;
+  if (state.playoutIndex >= state.playoutGrid.length) {
+    state.playoutIndex = 0;
+  }
+  state.playoutGrid.forEach((row, i) => {
+    if (i < state.playoutIndex) row.status = 'done';
+    if (i > state.playoutIndex) row.status = 'queued';
+  });
+  const current = state.playoutGrid[state.playoutIndex];
+  current.status = 'on-air';
+  state.asRun.unshift({
+    ts: new Date().toISOString(),
+    item: current.asset,
+    time: current.time,
+    kind: current.kind,
+    mode: current.mode
+  });
+  state.asRun = state.asRun.slice(0, 1200);
+  asRunBox.textContent = state.asRun.map(x => `${x.ts} | ${x.time} | ${x.item} | ${x.kind} | ${x.mode}`).join('\\n');
+  if (current.url) {
+    channelPlayer.src = current.url;
+    watchMeta.textContent = `On Air: ${current.asset} (${current.kind})`;
+  }
+  log(`On-air switched to ${current.time} ${current.asset}`);
+  state.playoutIndex += 1;
+  renderPlayoutGrid();
+}
+
+function exportAsRun(){
+  const payload = JSON.stringify(state.asRun, null, 2);
+  const blob = new Blob([payload], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `metve-asrun-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  log('As-run export generated');
+}
+
+function scanSmartAlerts(){
+  const alerts = [];
+  if (!state.playoutGrid.length) alerts.push('No playout grid built.');
+  const seen = new Set();
+  for (const item of state.playoutGrid) {
+    if (seen.has(item.time)) alerts.push(`Clash detected at ${item.time}`);
+    seen.add(item.time);
+    if (!item.asset || item.asset.trim() === '') alerts.push(`Free slot at ${item.time}`);
+  }
+  if (!alerts.length) alerts.push('No clashes/free-slots detected. Schedule healthy.');
+  alerts.push(`Role=${state.role}, Lang=${state.lang}, Socket=${state.socketUrl ? 'configured' : 'offline mode'}`);
+  alertsBox.textContent = alerts.join('\\n');
+  log('Smart alert scan completed');
+}
+
+function seedModeration(){
+  state.moderationQueue.unshift(
+    {type:'SMS', user:'+12025550101', text:'Play my song please!', ai:'safe'},
+    {type:'CHAT', user:'viewer_neo', text:'This channel is HOT LIVE', ai:'safe'},
+    {type:'SMS', user:'+447700900123', text:'spam $$$ link', ai:'flagged'}
+  );
+  renderModeration();
+  log('Moderation queue seeded');
+}
+
+function approveModeration(){
+  const item = state.moderationQueue.shift();
+  if (!item) { log('No moderation items to approve'); return; }
+  log(`Approved ${item.type} from ${item.user}`);
+  renderModeration();
+}
+
+function rejectModeration(){
+  const item = state.moderationQueue.shift();
+  if (!item) { log('No moderation items to reject'); return; }
+  log(`Rejected ${item.type} from ${item.user}`);
+  renderModeration();
+}
+
+function renderModeration(){
+  moderationBox.textContent = state.moderationQueue.map((m, i) => `#${i+1} ${m.type} ${m.user} | ${m.text} | AI=${m.ai}`).join('\\n') || 'Moderation queue empty';
 }
 
 function toggleApiFailure(){
@@ -1069,6 +1351,17 @@ function applyNostalgia(){
   log('Nostalgia FX -> ' + nostalgiaPreset.value);
 }
 
+function updateTimezone(){
+  const tz = tzSelect.value || 'UTC';
+  const now = new Date();
+  try {
+    tzNow.textContent = 'Current scheduler time: ' + now.toLocaleString('en-US', {timeZone: tz}) + ` (${tz})`;
+  } catch {
+    tzNow.textContent = 'Current scheduler time: ' + now.toISOString() + ' (UTC fallback)';
+  }
+  log('Scheduler timezone set to ' + tz);
+}
+
 (function initDnD(){
   const zone = document.getElementById('dropzone');
   const runUpload = () => {
@@ -1103,6 +1396,12 @@ renderLibrary();
 renderPlaylist();
 simulateRevenue();
 snapshotAnalytics();
+playoutDate.value = new Date().toISOString().slice(0,10);
+build24hPlayout();
+updateTimezone();
+setLanguage();
+setRole();
+renderModeration();
 refreshMe();
 refreshSocketConfig();
 refreshEvents();
